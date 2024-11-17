@@ -123,6 +123,18 @@ SELECT * FROM read_parquet('path/to/example.parquet');
 For a full list you can check out the [duckdb extensions](https://duckdb.org/docs/extensions/overview).
 You can also check out our [examples on GitHub](https://github.com/marimo-team/marimo/tree/main/examples/sql).
 
+## Referencing other variables
+
+If a variable is one of the types [duckdb supports as query parameters](https://duckdb.org/docs/api/python/conversion.html),
+it can accessed within the query as `$variable_name`.
+
+```python
+foo = "path/to/example.csv"
+```
+```sql
+SELECT * FROM read_csv($foo)
+```
+
 ## Interactive tutorial
 
 For an interactive tutorial, run

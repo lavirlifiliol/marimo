@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional, cast
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
@@ -31,6 +31,8 @@ def sql(
 
     This uses duckdb to execute the query. Any dataframes in the global
     namespace can be used inside the query.
+
+    Any global variables can be used in the query via the named parameter syntax.
 
     The result of the query is displayed in the UI if output is True.
 
@@ -122,6 +124,34 @@ def _query_includes_limit(query: str) -> bool:
     )
 
 
+def _compute_parameters(
+    query: str, context_globals: Mapping[str, object]
+) -> dict[str, object]:
+    import duckdb
+
+    try:
+        statements = duckdb.extract_statements(query.strip())
+    except Exception:
+        return {}
+
+    kwargs = {}
+    for statement in statements:
+        for name in statement.named_parameters:
+            if not name.isidentifier():
+                raise NameError(
+                    f"Query parameter {'$'+name!r} cannot be associated with a value,"
+                    "use named parameters (e.g. $var) to access global variables."
+                )
+            try:
+                kwargs[name] = context_globals[name]
+            except KeyError:
+                raise NameError(
+                    f"No variable {name!r} for query parameter {'$'+name!r}."
+                ) from None
+
+    return kwargs
+
+
 def _wrapped_sql(query: str) -> "duckdb.DuckDBPyRelation":
     import duckdb
 
@@ -136,9 +166,10 @@ def _wrapped_sql(query: str) -> "duckdb.DuckDBPyRelation":
     except ContextNotInitializedError:
         relation = duckdb.sql(query=query)
     else:
+        kwargs = _compute_parameters(query, ctx.globals)
         relation = eval(
-            "duckdb.sql(query=query)",
+            "duckdb.sql(query=query, params=kwargs)",
             ctx.globals,
-            {"query": query, "duckdb": duckdb},
+            {"query": query, "duckdb": duckdb, "kwargs": kwargs},
         )
     return relation

@@ -492,6 +492,7 @@ class ScopedVisitor(ast.NodeVisitor):
                 for statement in statements:
                     tables: Set[str] = set()
                     from_targets: list[str] = []
+                    parameters = statement.named_parameters
                     # Parse the refs and defs of each statement
                     try:
                         tables = duckdb.get_table_names(statement.query)
@@ -513,7 +514,9 @@ class ScopedVisitor(ast.NodeVisitor):
                     except BaseException as e:
                         LOGGER.warning("Unexpected duckdb error %s", e)
 
-                    for name in itertools.chain(tables, from_targets):
+                    for name in itertools.chain(
+                        tables, from_targets, parameters
+                    ):
                         # Name (table, db) may be a URL or something else that
                         # isn't a Python variable
                         if name.isidentifier():

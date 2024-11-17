@@ -129,3 +129,25 @@ def test_sql_output_flag(mock_replace: MagicMock) -> None:
 
     # Clean up
     duckdb.sql("DROP TABLE test_table_2")
+
+
+@patch("marimo._sql.sql.get_context")
+@pytest.mark.skipif(not HAS_DEPS, reason="polars and duckdb is required")
+def test_sql_nameerror_on_unset_param(context_mock: MagicMock):
+    context_mock.configure_mock(**{"return_value.globals": {}})
+    with pytest.raises(NameError, match="foo"):
+        sql("SELECT * FROM test_table_1 WHERE $foo > col1")
+
+
+@patch("marimo._sql.sql.get_context")
+@pytest.mark.skipif(not HAS_DEPS, reason="polars and duckdb is required")
+def test_sql_uses_globals(context_mock: MagicMock):
+    import duckdb
+
+    duckdb.sql(
+        "CREATE OR REPLACE TABLE test_table_1 AS SELECT * FROM range(10)"
+    )
+    context_mock.configure_mock(**{"return_value.globals": {"foo": 9}})
+    df = sql("SELECT * FROM test_table_1 WHERE $foo <= range")
+    assert len(df) == 1
+    duckdb.sql("DROP TABLE test_table_1")

@@ -1197,3 +1197,47 @@ def test_sql_table_f_string() -> None:
     v.visit(mod)
     assert not v.defs
     assert v.refs == set(["mo", "my_table", "lim"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_parameter_name() -> None:
+    code = "\n".join(["mo.sql(f'SELECT * FROM t1 WHERE $a > 0')"])
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert not v.defs
+    assert v.refs == set(["t1", "mo", "a"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_parameter_names() -> None:
+    code = "\n".join(
+        ["mo.sql(f'SELECT * FROM t1 WHERE $foo > 0 and $barbaz000 = col1')"]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert not v.defs
+    assert v.refs == set(["t1", "mo", "foo", "barbaz000"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_no_positional_names() -> None:
+    code = "\n".join(
+        ["mo.sql(f'SELECT * FROM t1 WHERE $1 > 0 and $1 = col1')"]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert not v.defs
+    assert v.refs == set(["t1", "mo"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_no_auto_names() -> None:
+    code = "\n".join(["mo.sql(f'SELECT * FROM t1 WHERE ? > 0 and ? = col1')"])
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert not v.defs
+    assert v.refs == set(["t1", "mo"])
